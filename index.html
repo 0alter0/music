@@ -40,21 +40,21 @@
       position: fixed;
       top: 0;
       bottom: 0;
-      width: 100px;
+      width: 150px;
       pointer-events: none;
       z-index: 1;
       opacity: 0;
-      transition: opacity 0.1s ease;
+      transition: opacity 0.05s ease;
     }
 
     .side-pulse.left {
       left: 0;
-      background: linear-gradient(to right, rgba(168, 85, 247, 0.4), transparent);
+      background: linear-gradient(to right, rgba(168, 85, 247, 0.7), transparent);
     }
 
     .side-pulse.right {
       right: 0;
-      background: linear-gradient(to left, rgba(168, 85, 247, 0.4), transparent);
+      background: linear-gradient(to left, rgba(168, 85, 247, 0.7), transparent);
     }
 
     .particles {
@@ -415,8 +415,8 @@
         const bassSum = dataArray.slice(0, 8).reduce((a, b) => a + b, 0) / 8;
         const bassIntensity = bassSum / 255;
 
-        pulseLeft.style.opacity = bassIntensity * 0.8;
-        pulseRight.style.opacity = bassIntensity * 0.8;
+        pulseLeft.style.opacity = Math.min(1, bassIntensity * 1.5);
+        pulseRight.style.opacity = Math.min(1, bassIntensity * 1.5);
 
         for (let i = 0; i < bars.length; i++) {
           const value = dataArray[i] || 0;
