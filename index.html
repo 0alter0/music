@@ -71,11 +71,24 @@
       position: absolute;
       width: 3px;
       height: 3px;
-      background: #a855f7;
       border-radius: 50%;
       opacity: 0;
       animation: float-right 3s ease-out infinite;
+    }
+
+    .particle.bass {
+      background: #a855f7;
       box-shadow: 0 0 6px #a855f7, 0 0 12px #7c3aed;
+    }
+
+    .particle.mid {
+      background: #ec4899;
+      box-shadow: 0 0 6px #ec4899, 0 0 12px #db2777;
+    }
+
+    .particle.high {
+      background: #c084fc;
+      box-shadow: 0 0 6px #c084fc, 0 0 12px #a855f7;
     }
 
     @keyframes float-right {
@@ -418,10 +431,11 @@
     const particlesContainer = document.getElementById('particles');
     let particleSpeedMultiplier = 1;
     let particleCount = 100;
+    let frequencyData = { bass: 0, mid: 0, high: 0 };
 
-    function createParticle() {
+    function createParticle(type = 'bass') {
       const particle = document.createElement('div');
-      particle.className = 'particle';
+      particle.className = `particle ${type}`;
       
       const left = Math.random() * 100;
       particle.style.left = `${left}%`;
@@ -457,23 +471,47 @@
         const dataArray = new Uint8Array(bufferLength);
         analyser.getByteFrequencyData(dataArray);
 
-        const bassSum = dataArray.slice(0, 8).reduce((a, b) => a + b, 0) / 8;
-        const bassIntensity = bassSum / 255;
+        const bassRange = dataArray.slice(0, 8);
+        const midRange = dataArray.slice(8, 32);
+        const highRange = dataArray.slice(32, 64);
+
+        const bassSum = bassRange.reduce((a, b) => a + b, 0) / bassRange.length;
+        const midSum = midRange.reduce((a, b) => a + b, 0) / midRange.length;
+        const highSum = highRange.reduce((a, b) => a + b, 0) / highRange.length;
+
+        frequencyData.bass = bassSum / 255;
+        frequencyData.mid = midSum / 255;
+        frequencyData.high = highSum / 255;
+
+        const bassIntensity = frequencyData.bass;
 
         particleSpeedMultiplier = 1 + (bassIntensity * 2);
         particleCount = Math.floor(100 + (bassIntensity * 200));
       } else {
         particleSpeedMultiplier = 1;
         particleCount = 100;
+        frequencyData = { bass: 0.3, mid: 0.3, high: 0.3 };
       }
     }, 100);
 
     setInterval(() => {
-      createParticle();
+      const total = frequencyData.bass + frequencyData.mid + frequencyData.high;
+      const rand = Math.random() * total;
+      
+      let type = 'bass';
+      if (rand < frequencyData.bass) {
+        type = 'bass';
+      } else if (rand < frequencyData.bass + frequencyData.mid) {
+        type = 'mid';
+      } else {
+        type = 'high';
+      }
+      
+      createParticle(type);
     }, particleCount);
     
     for (let i = 0; i < 30; i++) {
-      setTimeout(createParticle, i * 50);
+      setTimeout(() => createParticle('bass'), i * 50);
     }
   </script>
 </body>
