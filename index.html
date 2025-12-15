@@ -36,6 +36,27 @@
       z-index: 1;
     }
 
+    .side-pulse {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 100px;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+    }
+
+    .side-pulse.left {
+      left: 0;
+      background: linear-gradient(to right, rgba(168, 85, 247, 0.4), transparent);
+    }
+
+    .side-pulse.right {
+      right: 0;
+      background: linear-gradient(to left, rgba(168, 85, 247, 0.4), transparent);
+    }
+
     .particles {
       position: fixed;
       top: 0;
@@ -99,6 +120,63 @@
       letter-spacing: 1px;
     }
 
+    .visualizer-container {
+      width: 100%;
+      height: 120px;
+      margin-bottom: 30px;
+      background: rgba(27, 27, 27, 0.6);
+      border-radius: 16px;
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      padding: 20px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 3px;
+      overflow: hidden;
+    }
+
+    .bar {
+      width: 4px;
+      min-height: 2px;
+      background: linear-gradient(to top, #a855f7, #ec4899);
+      border-radius: 2px;
+      transition: height 0.1s ease;
+    }
+
+    .now-playing {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 12px;
+      background: rgba(168, 85, 247, 0.1);
+      border-radius: 12px;
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      min-height: 45px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .now-playing-text {
+      font-size: 1.1rem;
+      color: #a855f7;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .now-playing-text.active {
+      opacity: 1;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.6;
+      }
+    }
+
     ul {
       list-style: none;
       padding: 0;
@@ -126,12 +204,23 @@
       box-shadow: 0 8px 24px rgba(168, 85, 247, 0.2);
     }
 
+    li.playing {
+      background: rgba(168, 85, 247, 0.15);
+      border-color: rgba(168, 85, 247, 0.6);
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.3);
+    }
+
     .title {
       min-width: 140px;
       font-size: 1rem;
       font-weight: 500;
       opacity: 0.95;
       color: #d4d4d4;
+    }
+
+    li.playing .title {
+      color: #a855f7;
+      font-weight: 600;
     }
 
     audio {
@@ -173,14 +262,27 @@
       audio {
         width: 100%;
       }
+
+      .visualizer-container {
+        height: 80px;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="side-pulse left" id="pulseLeft"></div>
+  <div class="side-pulse right" id="pulseRight"></div>
   <div class="particles" id="particles"></div>
 
   <div class="container">
     <h1>NOT LEAVING</h1>
+    
+    <div class="now-playing">
+      <div class="now-playing-text" id="nowPlayingText">Select a track to play</div>
+    </div>
+
+    <div class="visualizer-container" id="visualizer"></div>
+    
     <ul id="audioList"></ul>
   </div>
 
@@ -199,36 +301,136 @@
     ];
 
     const list = document.getElementById('audioList');
-    songs.forEach(file => {
+    const nowPlayingText = document.getElementById('nowPlayingText');
+    const visualizer = document.getElementById('visualizer');
+    const pulseLeft = document.getElementById('pulseLeft');
+    const pulseRight = document.getElementById('pulseRight');
+    
+    let audioContext;
+    let analyser;
+    let currentSource;
+    let currentAudio;
+    let bars = [];
+
+    for (let i = 0; i < 64; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      visualizer.appendChild(bar);
+      bars.push(bar);
+    }
+
+    songs.forEach((file, index) => {
       const li = document.createElement('li');
+      li.dataset.index = index;
+      
       const title = document.createElement('div');
       title.className = 'title';
       title.textContent = file.replace(/\.[^/.]+$/, '');
+      
       const audio = document.createElement('audio');
       audio.controls = true;
       audio.src = `songs/${file}`;
+      
+      audio.addEventListener('play', () => {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 128;
+        }
+
+        document.querySelectorAll('li').forEach(item => item.classList.remove('playing'));
+        li.classList.add('playing');
+        
+        nowPlayingText.textContent = `Now Playing: ${title.textContent}`;
+        nowPlayingText.classList.add('active');
+
+        if (currentSource) {
+          currentSource.disconnect();
+        }
+
+        currentAudio = audio;
+        currentSource = audioContext.createMediaElementSource(audio);
+        currentSource.connect(analyser);
+        analyser.connect(audioContext.destination);
+
+        visualize();
+      });
+
+      audio.addEventListener('pause', () => {
+        if (currentAudio === audio) {
+          li.classList.remove('playing');
+          nowPlayingText.classList.remove('active');
+          nowPlayingText.textContent = 'Paused';
+        }
+      });
+
+      audio.addEventListener('ended', () => {
+        li.classList.remove('playing');
+        nowPlayingText.classList.remove('active');
+        nowPlayingText.textContent = 'Select a track to play';
+      });
+      
       li.appendChild(title);
       li.appendChild(audio);
       list.appendChild(li);
     });
 
+    function visualize() {
+      if (!analyser) return;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        if (!currentAudio || currentAudio.paused) return;
+
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+
+        const bassSum = dataArray.slice(0, 8).reduce((a, b) => a + b, 0) / 8;
+        const bassIntensity = bassSum / 255;
+
+        pulseLeft.style.opacity = bassIntensity * 0.8;
+        pulseRight.style.opacity = bassIntensity * 0.8;
+
+        for (let i = 0; i < bars.length; i++) {
+          const value = dataArray[i] || 0;
+          const percent = (value / 255) * 100;
+          bars[i].style.height = `${Math.max(2, percent)}%`;
+        }
+      }
+
+      draw();
+    }
+
     const particlesContainer = document.getElementById('particles');
-    
+    let particleSpeedMultiplier = 1;
+    let particleCount = 100;
+
     function createParticle() {
       const particle = document.createElement('div');
       particle.className = 'particle';
       
       const left = Math.random() * 100;
       particle.style.left = `${left}%`;
-      
       particle.style.bottom = '-10px';
       
-      const endX = 150 + Math.random() * 300;
-      const endY = -(100 + Math.random() * 200); 
+      const baseEndX = 150 + Math.random() * 300;
+      const baseEndY = -(100 + Math.random() * 200);
+      
+      const endX = baseEndX * particleSpeedMultiplier;
+      const endY = baseEndY * particleSpeedMultiplier;
+      
       particle.style.setProperty('--end-x', endX);
       particle.style.setProperty('--end-y', endY);
       
-      const duration = 2 + Math.random() * 2;
+      const duration = (2 + Math.random() * 2) / particleSpeedMultiplier;
       particle.style.animationDuration = `${duration}s`;
       particle.style.animationDelay = `${Math.random() * 0.5}s`;
       
@@ -243,7 +445,26 @@
       }, (duration + 0.5) * 1000);
     }
 
-    setInterval(createParticle, 100);
+    setInterval(() => {
+      if (analyser && currentAudio && !currentAudio.paused) {
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyser.getByteFrequencyData(dataArray);
+
+        const bassSum = dataArray.slice(0, 8).reduce((a, b) => a + b, 0) / 8;
+        const bassIntensity = bassSum / 255;
+
+        particleSpeedMultiplier = 1 + (bassIntensity * 2);
+        particleCount = Math.floor(100 + (bassIntensity * 200));
+      } else {
+        particleSpeedMultiplier = 1;
+        particleCount = 100;
+      }
+    }, 100);
+
+    setInterval(() => {
+      createParticle();
+    }, particleCount);
     
     for (let i = 0; i < 30; i++) {
       setTimeout(createParticle, i * 50);
