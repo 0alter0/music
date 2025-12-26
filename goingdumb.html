@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LIL SKITTLE</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0a0a0a;
+      color: #eaeaea;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      position: relative;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: linear-gradient(to top, rgba(138, 43, 226, 0.3), transparent);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(ellipse at bottom left, rgba(168, 85, 247, 0.4), transparent 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .corner-glow {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(ellipse at bottom right, rgba(168, 85, 247, 0.4), transparent 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .side-pulse {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: 200px;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.6;
+      transition: transform 0.05s ease;
+    }
+
+    .side-pulse.left {
+      left: 0;
+      background: linear-gradient(to right, rgba(168, 85, 247, 0.5), transparent);
+      transform: translateX(-100%);
+    }
+
+    .side-pulse.right {
+      right: 0;
+      background: linear-gradient(to left, rgba(168, 85, 247, 0.5), transparent);
+      transform: translateX(100%);
+    }
+
+    .particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .particle {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      opacity: 0;
+      animation: float-right 3s ease-out infinite;
+    }
+
+    .particle.bass {
+      background: #a855f7;
+      box-shadow: 0 0 6px #a855f7, 0 0 12px #7c3aed;
+    }
+
+    .particle.mid {
+      background: #ec4899;
+      box-shadow: 0 0 6px #ec4899, 0 0 12px #db2777;
+    }
+
+    .particle.high {
+      background: #c084fc;
+      box-shadow: 0 0 6px #c084fc, 0 0 12px #a855f7;
+    }
+
+    @keyframes float-right {
+      0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0;
+      }
+      10% {
+        opacity: 0.9;
+      }
+      30% {
+        opacity: 0.7;
+      }
+      60% {
+        opacity: 0.4;
+      }
+      100% {
+        transform: translate(
+          calc(var(--end-x) * 1px), 
+          calc(var(--end-y) * 1px)
+        ) scale(0.3);
+        opacity: 0;
+      }
+    }
+
+    .container {
+      max-width: 700px;
+      width: 100%;
+      position: relative;
+      z-index: 2;
+      margin: auto 0;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 40px;
+      text-align: center;
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .visualizer-container {
+      width: 100%;
+      height: 120px;
+      margin-bottom: 30px;
+      background: rgba(27, 27, 27, 0.6);
+      border-radius: 16px;
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      padding: 20px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 3px;
+      overflow: hidden;
+    }
+
+    .bar {
+      width: 4px;
+      min-height: 2px;
+      background: linear-gradient(to top, #a855f7, #ec4899);
+      border-radius: 2px;
+      transition: height 0.1s ease;
+    }
+
+    .now-playing {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 12px;
+      background: rgba(168, 85, 247, 0.1);
+      border-radius: 12px;
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      min-height: 45px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .now-playing-text {
+      font-size: 1.1rem;
+      color: #a855f7;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .now-playing-text.active {
+      opacity: 1;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.6;
+      }
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    li {
+      background: rgba(27, 27, 27, 0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    li:hover {
+      background: rgba(40, 40, 40, 0.9);
+      border-color: rgba(168, 85, 247, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(168, 85, 247, 0.2);
+    }
+
+    li.playing {
+      background: rgba(168, 85, 247, 0.15);
+      border-color: rgba(168, 85, 247, 0.6);
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.3);
+    }
+
+    .title {
+      min-width: 140px;
+      font-size: 1rem;
+      font-weight: 500;
+      opacity: 0.95;
+      color: #d4d4d4;
+    }
+
+    li.playing .title {
+      color: #a855f7;
+      font-weight: 600;
+    }
+
+    audio {
+      flex: 1;
+      height: 40px;
+      border-radius: 20px;
+    }
+
+    audio::-webkit-media-controls-panel {
+      background: rgba(168, 85, 247, 0.1);
+    }
+
+    audio::-webkit-media-controls-play-button,
+    audio::-webkit-media-controls-pause-button {
+      background: rgba(168, 85, 247, 0.3);
+      border-radius: 50%;
+    }
+
+    audio::-webkit-media-controls-current-time-display,
+    audio::-webkit-media-controls-time-remaining-display {
+      color: #a855f7;
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      li {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .title {
+        min-width: auto;
+      }
+
+      audio {
+        width: 100%;
+      }
+
+      .visualizer-container {
+        height: 80px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="corner-glow"></div>
+  <div class="side-pulse left" id="pulseLeft"></div>
+  <div class="side-pulse right" id="pulseRight"></div>
+  <div class="particles" id="particles"></div>
+
+  <div class="container">
+    <h1>LIL SKITTLE</h1>
+    
+    <div class="now-playing">
+      <div class="now-playing-text" id="nowPlayingText">Select a track to play</div>
+    </div>
+
+    <div class="visualizer-container" id="visualizer"></div>
+    
+    <ul id="audioList"></ul>
+  </div>
+
+  <script>
+    const songs = [
+`Whole Lotta Awful Shit.mp3`,
+`Karma.mp3`,
+`Venus.mp3`,
+`Dr Suess.mp3`,
+`That Guy.mp3`,
+`Phantom.mp3`,
+`Platinum.mp3`,
+`On Some Bullshit.mp3`,
+`Your Favorite Rapper.mp3`,
+`Preposterous.mp3`
+    ];
+
+    const list = document.getElementById('audioList');
+    const nowPlayingText = document.getElementById('nowPlayingText');
+    const visualizer = document.getElementById('visualizer');
+    const pulseLeft = document.getElementById('pulseLeft');
+    const pulseRight = document.getElementById('pulseRight');
+    
+    let audioContext;
+    let analyser;
+    let currentSource;
+    let currentAudio;
+    let bars = [];
+
+    for (let i = 0; i < 64; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      visualizer.appendChild(bar);
+      bars.push(bar);
+    }
+
+    songs.forEach((file, index) => {
+      const li = document.createElement('li');
+      li.dataset.index = index;
+      
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = file.replace(/\.[^/.]+$/, '');
+      
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.src = `songs/${file}`;
+      
+      audio.addEventListener('play', () => {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 128;
+        }
+
+        document.querySelectorAll('li').forEach(item => item.classList.remove('playing'));
+        li.classList.add('playing');
+        
+        nowPlayingText.textContent = `Now Playing: ${title.textContent}`;
+        nowPlayingText.classList.add('active');
+
+        if (!audio.connectedToAnalyser) {
+          if (currentSource) {
+            currentSource.disconnect();
+          }
+
+          currentAudio = audio;
+          currentSource = audioContext.createMediaElementSource(audio);
+          currentSource.connect(analyser);
+          analyser.connect(audioContext.destination);
+          audio.connectedToAnalyser = true;
+        } else {
+          currentAudio = audio;
+        }
+
+        visualize();
+      });
+
+      audio.addEventListener('pause', () => {
+        if (currentAudio === audio) {
+          li.classList.remove('playing');
+          nowPlayingText.classList.remove('active');
+          nowPlayingText.textContent = 'Paused';
+        }
+      });
+
+      audio.addEventListener('ended', () => {
+        li.classList.remove('playing');
+        nowPlayingText.classList.remove('active');
+        nowPlayingText.textContent = 'Select a track to play';
+      });
+      
+      li.appendChild(title);
+      li.appendChild(audio);
+      list.appendChild(li);
+    });
+
+    function visualize() {
+      if (!analyser) return;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        if (!currentAudio || currentAudio.paused) return;
+
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+
+        const bassSum = dataArray.slice(0, 8).reduce((a, b) => a + b, 0) / 8;
+        const bassIntensity = bassSum / 255;
+
+        const pushAmount = (1 - bassIntensity) * 100;
+        pulseLeft.style.transform = `translateX(-${pushAmount}%)`;
+        pulseRight.style.transform = `translateX(${pushAmount}%)`;
+
+        for (let i = 0; i < bars.length; i++) {
+          const value = dataArray[i] || 0;
+          const percent = (value / 255) * 100;
+          bars[i].style.height = `${Math.max(2, percent)}%`;
+        }
+      }
+
+      draw();
+    }
+
+    const particlesContainer = document.getElementById('particles');
+    let particleSpeedMultiplier = 1;
+    let particleCount = 100;
+    let frequencyData = { bass: 0, mid: 0, high: 0 };
+
+    function createParticle(type = 'bass') {
+      const particle = document.createElement('div');
+      particle.className = `particle ${type}`;
+      
+      const left = Math.random() * 100;
+      particle.style.left = `${left}%`;
+      particle.style.bottom = '-10px';
+      
+      const baseEndX = 150 + Math.random() * 300;
+      const baseEndY = -(100 + Math.random() * 200);
+      
+      const endX = baseEndX * particleSpeedMultiplier;
+      const endY = baseEndY * particleSpeedMultiplier;
+      
+      particle.style.setProperty('--end-x', endX);
+      particle.style.setProperty('--end-y', endY);
+      
+      const duration = (2 + Math.random() * 2) / particleSpeedMultiplier;
+      particle.style.animationDuration = `${duration}s`;
+      particle.style.animationDelay = `${Math.random() * 0.5}s`;
+      
+      const size = 2 + Math.random() * 4;
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+      
+      particlesContainer.appendChild(particle);
+      
+      setTimeout(() => {
+        particle.remove();
+      }, (duration + 0.5) * 1000);
+    }
+
+    setInterval(() => {
+      if (analyser && currentAudio && !currentAudio.paused) {
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyser.getByteFrequencyData(dataArray);
+
+        const bassRange = dataArray.slice(0, 8);
+        const midRange = dataArray.slice(8, 32);
+        const highRange = dataArray.slice(32, 64);
+
+        const bassSum = bassRange.reduce((a, b) => a + b, 0) / bassRange.length;
+        const midSum = midRange.reduce((a, b) => a + b, 0) / midRange.length;
+        const highSum = highRange.reduce((a, b) => a + b, 0) / highRange.length;
+
+        frequencyData.bass = bassSum / 255;
+        frequencyData.mid = midSum / 255;
+        frequencyData.high = highSum / 255;
+
+        const bassIntensity = frequencyData.bass;
+
+        particleSpeedMultiplier = 1 + (bassIntensity * 2);
+        particleCount = Math.floor(100 + (bassIntensity * 200));
+      } else {
+        particleSpeedMultiplier = 1;
+        particleCount = 100;
+        frequencyData = { bass: 0.3, mid: 0.3, high: 0.3 };
+      }
+    }, 100);
+
+    setInterval(() => {
+      const total = frequencyData.bass + frequencyData.mid + frequencyData.high;
+      const rand = Math.random() * total;
+      
+      let type = 'bass';
+      if (rand < frequencyData.bass) {
+        type = 'bass';
+      } else if (rand < frequencyData.bass + frequencyData.mid) {
+        type = 'mid';
+      } else {
+        type = 'high';
+      }
+      
+      createParticle(type);
+    }, particleCount);
+    
+    for (let i = 0; i < 30; i++) {
+      setTimeout(() => createParticle('bass'), i * 50);
+    }
+  </script>
+</body>
+</html>
